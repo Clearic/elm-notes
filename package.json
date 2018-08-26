@@ -1,0 +1,36 @@
+{
+  "name": "elm-notes",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "js": "elm make src/Main.elm --output=build/scripts.js",
+    "js:d": "yarn -s run js --debug",
+    "js:w": "onchange -i src/**/*.elm -- yarn -s run js:d",
+    "js:p": "yarn -s run js --optimize",
+    "postjs:p": "uglifyjs build/scripts.js -c pure_funcs=\"'F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9',pure_getters,keep_fargs=false,unsafe_comps,unsafe\" | uglifyjs -c -m --output=build/scripts.js",
+    "html": "html-minifier -o build/index.html public/index.html",
+    "html:d": "yarn run html",
+    "html:p": "yarn run html --collapse-whitespace",
+    "precss": "copyfiles fonts/*.* -s build",
+    "css": "postcss --use postcss-import --use postcss-extend --use postcss-nested --no-map -o build/styles.css scss/all.scss",
+    "css:d": "yarn -s run css --verbose",
+    "css:w": "yarn -s run css --verbose --watch",
+    "css:p": "yarn -s run css --use cssnano",
+    "clean": "rimraf build",
+    "build:d": "yarn run clean && yarn run js:d && yarn run css:d && yarn run html:d",
+    "build": "yarn run clean && yarn run js:p && yarn run css:p && yarn run html:p"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "copyfiles": "^2.0.0",
+    "cssnano": "^4.1.0",
+    "elm": "^0.19.0-bugfix2",
+    "html-minifier": "^3.5.20",
+    "onchange": "^4.1.0",
+    "postcss-cli": "^6.0.0",
+    "postcss-extend": "^1.0.5",
+    "postcss-import": "^12.0.0",
+    "postcss-nested": "^3.0.0",
+    "uglify-js": "^3.4.8"
+  }
+}
