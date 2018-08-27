@@ -306,22 +306,37 @@ viewCreateFolderDialog name =
         ]
 
 
+viewNotesList : Model -> Html Msg
+viewNotesList model =
+    case getFolder model.items model.path of
+        Just f ->
+            viewFolder model.items f
+
+        Nothing ->
+            div [] [ text "Error: No Folder" ]
+
+
+viewNoteEdit : Model -> Html Msg
+viewNoteEdit model =
+    model.openedNote
+        |> Maybe.andThen (getNote model.items)
+        |> viewNote
+
+
+viewDialog : Model -> Html Msg
+viewDialog model =
+    case model.dialog of
+        NoDialog ->
+            text ""
+
+        CreateFolderDialog name ->
+            viewCreateFolderDialog name
+
+
 view : Model -> Html Msg
 view model =
     div [ class "app" ]
-        [ case getFolder model.items model.path of
-            Just f ->
-                viewFolder model.items f
-
-            Nothing ->
-                div [] [ text "Error: No Folder" ]
-        , model.openedNote
-            |> Maybe.andThen (getNote model.items)
-            |> viewNote
-        , case model.dialog of
-            NoDialog ->
-                text ""
-
-            CreateFolderDialog name ->
-                viewCreateFolderDialog name
+        [ viewNotesList model
+        , viewNoteEdit model
+        , viewDialog model
         ]
