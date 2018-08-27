@@ -2,7 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Dict exposing (Dict)
-import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
+import Html exposing (Attribute, Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, hidden, href, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit, preventDefaultOn)
 import Json.Decode as Json
@@ -230,6 +230,7 @@ getNote items id =
             )
 
 
+onClickPreventDefault : msg -> Attribute msg
 onClickPreventDefault msg =
     preventDefaultOn "click" (Json.map alwaysPreventDefault (Json.succeed msg))
 
@@ -239,6 +240,7 @@ alwaysPreventDefault msg =
     ( msg, True )
 
 
+viewFolderItem : FolderItem -> Html Msg
 viewFolderItem folderItem =
     case folderItem of
         FolderItemNote note ->
@@ -254,6 +256,7 @@ viewFolderItem folderItem =
                 ]
 
 
+viewFolder : Dict String FolderItem -> Folder -> Html Msg
 viewFolder items folder =
     div [ class "app__left-sidebar" ]
         [ div [ class "bar" ]
@@ -270,6 +273,7 @@ viewFolder items folder =
         ]
 
 
+viewNote : Maybe Note -> Html Msg
 viewNote maybeNote =
     case maybeNote of
         Just note ->
@@ -282,6 +286,7 @@ viewNote maybeNote =
             text ""
 
 
+viewCreateFolderDialog : String -> Html Msg
 viewCreateFolderDialog name =
     div [ class "popup-back" ]
         [ div [ class "popup" ]
