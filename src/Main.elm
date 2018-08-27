@@ -2,9 +2,9 @@ module Main exposing (..)
 
 import Browser
 import Dict exposing (Dict)
-import Html exposing (Html, a, button, div, h1, i, input, li, text, textarea, ul)
-import Html.Attributes exposing (class, disabled, hidden, href, placeholder, value)
-import Html.Events exposing (onClick, onInput, preventDefaultOn)
+import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
+import Html.Attributes exposing (class, disabled, hidden, href, placeholder, type_, value)
+import Html.Events exposing (onClick, onInput, onSubmit, preventDefaultOn)
 import Json.Decode as Json
 
 
@@ -290,9 +290,11 @@ viewCreateFolderDialog name =
                 , button [ class "bar__button", onClick CloseDialog ] [ i [ class "icon-close" ] [] ]
                 ]
             , div [ class "popup__content" ]
-                [ div [ class "form-row" ]
-                    [ input [ class "popup__input", placeholder "Folder Name", value name, onInput CreateFolderDialogChange ] []
-                    , button [ class "popup__button", disabled (String.length name == 0), onClick (CreateFolder name) ] [ text "Create" ]
+                [ form [ onSubmit (CreateFolder name) ]
+                    [ div [ class "form-row" ]
+                        [ input [ class "popup__input", placeholder "Folder Name", value name, onInput CreateFolderDialogChange ] []
+                        , button [ class "popup__button", disabled (String.length name == 0), type_ "submit" ] [ text "Create" ]
+                        ]
                     ]
                 ]
             ]
