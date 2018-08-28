@@ -2,10 +2,10 @@ module Main exposing (..)
 
 import Browser
 import Dict exposing (Dict)
-import Html exposing (Attribute, Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
+import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, hidden, href, placeholder, type_, value)
-import Html.Events exposing (onClick, onInput, onSubmit, preventDefaultOn)
-import Json.Decode as Json
+import Html.Events exposing (onClick, onInput, onSubmit)
+import Utils exposing (onClickPreventDefault)
 
 
 type alias Note =
@@ -220,16 +220,6 @@ getNote items id =
                     FolderItemFolder _ ->
                         Nothing
             )
-
-
-onClickPreventDefault : msg -> Attribute msg
-onClickPreventDefault msg =
-    preventDefaultOn "click" (Json.map alwaysPreventDefault (Json.succeed msg))
-
-
-alwaysPreventDefault : msg -> ( msg, Bool )
-alwaysPreventDefault msg =
-    ( msg, True )
 
 
 viewFolderItem : FolderItem -> Html Msg
