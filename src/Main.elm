@@ -1,6 +1,7 @@
 module Main exposing (..)
 
 import Browser
+import CreateFolderDialog as CreateFolderDialog exposing (..)
 import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, hidden, href, placeholder, type_, value)
@@ -29,7 +30,7 @@ type FolderItem
 
 type Dialog
     = NoDialog
-    | CreateFolderDialog String
+    | DialogCreateFolderDialog CreateFolderDialog.Model
 
 
 main =
@@ -78,9 +79,11 @@ type Msg
     | ChangeNote String String
     | NewNote
     | OpenCreateFolderDialog
-    | CreateFolderDialogChange String
-    | CloseDialog
-    | CreateFolder String
+    | DialogMsg DialogMsg
+
+
+type DialogMsg
+    = DialogMsgCreateFolderDialog CreateFolderDialog.Msg
 
 
 genNoteTitle : String -> String
@@ -160,33 +163,40 @@ update msg model =
                     )
                 |> Maybe.withDefault model
 
+        DialogMsg dialogMsg ->
+            case ( model.dialog, dialogMsg ) of
+                ( DialogCreateFolderDialog dialogModel, DialogMsgCreateFolderDialog createFolderDialogMsg ) ->
+                    case CreateFolderDialog.update createFolderDialogMsg dialogModel of
+                        ( m, NoOp ) ->
+                            { model | dialog = DialogCreateFolderDialog m }
+
+                        ( _, CreateFolderDialog.Cancel ) ->
+                            { model | dialog = NoDialog }
+
+                        ( _, CreateFolderDialog.CreateFolder name ) ->
+                            let
+                                newId =
+                                    getNewId model.items
+                            in
+                            getFolder model.items model.path
+                                |> Maybe.map (\f -> { f | items = newId :: f.items })
+                                |> Maybe.map
+                                    (\f ->
+                                        { model
+                                            | dialog = NoDialog
+                                            , items =
+                                                model.items
+                                                    |> insertFolder (Folder newId name [])
+                                                    |> insertFolder f
+                                        }
+                                    )
+                                |> Maybe.withDefault model
+
+                ( _, _ ) ->
+                    model
+
         OpenCreateFolderDialog ->
-            { model | dialog = CreateFolderDialog "" }
-
-        CreateFolderDialogChange name ->
-            { model | dialog = CreateFolderDialog name }
-
-        CloseDialog ->
-            { model | dialog = NoDialog }
-
-        CreateFolder name ->
-            let
-                newId =
-                    getNewId model.items
-            in
-            getFolder model.items model.path
-                |> Maybe.map (\f -> { f | items = newId :: f.items })
-                |> Maybe.map
-                    (\f ->
-                        { model
-                            | dialog = NoDialog
-                            , items =
-                                model.items
-                                    |> insertFolder (Folder newId name [])
-                                    |> insertFolder f
-                        }
-                    )
-                |> Maybe.withDefault model
+            { model | dialog = DialogCreateFolderDialog CreateFolderDialog.initModel }
 
 
 
@@ -268,26 +278,6 @@ viewNote maybeNote =
             text ""
 
 
-viewCreateFolderDialog : String -> Html Msg
-viewCreateFolderDialog name =
-    div [ class "popup-back" ]
-        [ div [ class "popup" ]
-            [ div [ class "bar" ]
-                [ div [ class "bar__title" ] [ text "Create Folder" ]
-                , button [ class "bar__button", onClick CloseDialog ] [ i [ class "icon-close" ] [] ]
-                ]
-            , div [ class "popup__content" ]
-                [ form [ onSubmit (CreateFolder name) ]
-                    [ div [ class "form-row" ]
-                        [ input [ class "popup__input", placeholder "Folder Name", value name, onInput CreateFolderDialogChange ] []
-                        , button [ class "popup__button", disabled (String.length name == 0), type_ "submit" ] [ text "Create" ]
-                        ]
-                    ]
-                ]
-            ]
-        ]
-
-
 viewNotesList : Model -> Html Msg
 viewNotesList model =
     case getFolder model.items model.path of
@@ -311,8 +301,8 @@ viewDialog model =
         NoDialog ->
             text ""
 
-        CreateFolderDialog name ->
-            viewCreateFolderDialog name
+        DialogCreateFolderDialog dialogModel ->
+            Html.map (\x -> DialogMsg <| DialogMsgCreateFolderDialog x) (CreateFolderDialog.view dialogModel)
 
 
 view : Model -> Html Msg
