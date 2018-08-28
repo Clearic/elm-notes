@@ -72,9 +72,7 @@ init =
 
 
 type Msg
-    = Test
-    | Test2
-    | OpenFolder Folder
+    = OpenFolder Folder
     | OpenNote Note
     | GoBack
     | ChangeNote String String
@@ -122,12 +120,6 @@ getNewId items =
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        Test ->
-            model
-
-        Test2 ->
-            model
-
         OpenFolder folder ->
             { model | path = folder.id :: model.path }
 
