@@ -8,12 +8,15 @@ import Html.Events exposing (onClick, onInput, onSubmit)
 type alias Model =
     { name : String
     , nameValMsg : Maybe String
+    , namesAlreadyExist : List String
     }
 
 
-initModel =
+initModel : List String -> Model
+initModel names =
     { name = ""
     , nameValMsg = Nothing
+    , namesAlreadyExist = List.map String.toLower names
     }
 
 
@@ -33,13 +36,13 @@ update : Msg -> Model -> ( Model, ExternalMsg )
 update msg model =
     case msg of
         ChangeName name ->
-            ( { model | name = name, nameValMsg = validateName name }, NoOp )
+            ( { model | name = name, nameValMsg = validateName model.namesAlreadyExist name }, NoOp )
 
         Close ->
             ( model, Cancel )
 
         Submit ->
-            { model | nameValMsg = validateName model.name }
+            { model | nameValMsg = validateName model.namesAlreadyExist model.name }
                 |> (\x ->
                         case x.nameValMsg of
                             Nothing ->
@@ -50,12 +53,36 @@ update msg model =
                    )
 
 
-validateName : String -> Maybe String
-validateName name =
+validateName : List String -> String -> Maybe String
+validateName namesAlreadyExist name =
+    name
+        |> String.trim
+        |> validateNameIsEmpty
+        |> Result.andThen (validateNameIsAlreadyExist namesAlreadyExist)
+        |> (\x ->
+                case x of
+                    Err e ->
+                        Just e
+
+                    Ok _ ->
+                        Nothing
+           )
+
+
+validateNameIsEmpty : String -> Result String String
+validateNameIsEmpty name =
     if String.length name == 0 then
-        Just "Folder name must not be empty"
+        Err "Folder name must not be empty"
     else
-        Nothing
+        Ok name
+
+
+validateNameIsAlreadyExist : List String -> String -> Result String String
+validateNameIsAlreadyExist namesAlreadyExist name =
+    if List.member (String.toLower name) namesAlreadyExist then
+        Err "Folder with this name already exists"
+    else
+        Ok name
 
 
 isModelValid : Model -> Bool

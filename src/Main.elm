@@ -196,7 +196,13 @@ update msg model =
                     model
 
         OpenCreateFolderDialog ->
-            { model | dialog = DialogCreateFolderDialog CreateFolderDialog.initModel }
+            let
+                folderNames =
+                    getFolder model.items model.path
+                        |> Maybe.map (\f -> f.items |> List.filterMap (getFolderById model.items) |> List.map .title)
+                        |> Maybe.withDefault []
+            in
+            { model | dialog = DialogCreateFolderDialog (CreateFolderDialog.initModel folderNames) }
 
 
 
@@ -207,6 +213,20 @@ getFolder : Dict String FolderItem -> List String -> Maybe Folder
 getFolder items path =
     List.head path
         |> Maybe.andThen (\id -> Dict.get id items)
+        |> Maybe.andThen
+            (\item ->
+                case item of
+                    FolderItemNote _ ->
+                        Nothing
+
+                    FolderItemFolder f ->
+                        Just f
+            )
+
+
+getFolderById : Dict String FolderItem -> String -> Maybe Folder
+getFolderById items id =
+    Dict.get id items
         |> Maybe.andThen
             (\item ->
                 case item of
