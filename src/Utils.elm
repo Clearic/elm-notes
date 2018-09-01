@@ -13,3 +13,13 @@ onClickPreventDefault msg =
 alwaysPreventDefault : msg -> ( msg, Bool )
 alwaysPreventDefault msg =
     ( msg, True )
+
+
+filter : (a -> Bool) -> Maybe a -> Maybe a
+filter f m =
+    case Maybe.map f m of
+        Just True ->
+            m
+
+        _ ->
+            Nothing

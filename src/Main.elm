@@ -6,7 +6,7 @@ import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, hidden, href, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
-import Utils exposing (onClickPreventDefault)
+import Utils exposing (filter, onClickPreventDefault)
 
 
 main =
@@ -68,8 +68,62 @@ init =
     }
 
 
-getFolder : Dict String FolderItem -> List String -> Maybe Folder
-getFolder items path =
+newNote id text =
+    Note id (genNoteTitle text) text
+
+
+genNoteTitle : String -> String
+genNoteTitle text =
+    text
+        |> String.lines
+        |> List.head
+        |> Maybe.map String.trim
+        |> filter (\x -> String.length x /= 0)
+        |> Maybe.withDefault "untitled"
+
+
+insertNote : Note -> Dict String FolderItem -> Dict String FolderItem
+insertNote note items =
+    Dict.insert note.id (FolderItemNote note) items
+
+
+insertFolder : Folder -> Dict String FolderItem -> Dict String FolderItem
+insertFolder folder items =
+    Dict.insert folder.id (FolderItemFolder folder) items
+
+
+updateNote : String -> String -> Dict String FolderItem -> Dict String FolderItem
+updateNote id text items =
+    Dict.insert id (FolderItemNote (newNote id text)) items
+
+
+addItemToCurrentFolder : FolderItem -> List String -> Dict String FolderItem -> Maybe (Dict String FolderItem)
+addItemToCurrentFolder item path items =
+    let
+        id =
+            getItemId item
+    in
+    getCurrentFolder items path
+        |> Maybe.map
+            (\f ->
+                items
+                    |> Dict.insert id item
+                    |> insertFolder { f | items = id :: f.items }
+            )
+
+
+getItemId : FolderItem -> String
+getItemId item =
+    case item of
+        FolderItemNote note ->
+            note.id
+
+        FolderItemFolder folder ->
+            folder.id
+
+
+getCurrentFolder : Dict String FolderItem -> List String -> Maybe Folder
+getCurrentFolder items path =
     List.head path
         |> Maybe.andThen (\id -> Dict.get id items)
         |> Maybe.andThen
@@ -83,8 +137,8 @@ getFolder items path =
             )
 
 
-getFolderById : Dict String FolderItem -> String -> Maybe Folder
-getFolderById items id =
+getFolder : Dict String FolderItem -> String -> Maybe Folder
+getFolder items id =
     Dict.get id items
         |> Maybe.andThen
             (\item ->
@@ -142,32 +196,30 @@ update msg model =
             model.path
                 |> (\x ->
                         if List.length x > 1 then
-                            Just x
+                            List.tail x
                         else
-                            Nothing
+                            Just x
                    )
-                |> Maybe.andThen (\x -> List.tail x)
                 |> Maybe.map (\x -> { model | path = x })
                 |> Maybe.withDefault model
 
         ChangeNote id text ->
-            { model | items = Dict.insert id (FolderItemNote (Note id (genNoteTitle text) text)) model.items }
+            { model | items = updateNote id text model.items }
 
         NewNote ->
             let
                 newId =
                     getNewId model.items
+
+                note =
+                    newNote newId "New Note"
             in
-            getFolder model.items model.path
-                |> Maybe.map (\f -> { f | items = newId :: f.items })
+            addItemToCurrentFolder (FolderItemNote note) model.path model.items
                 |> Maybe.map
-                    (\f ->
+                    (\items ->
                         { model
                             | openedNote = Just newId
-                            , items =
-                                model.items
-                                    |> insertNote newId "New Note"
-                                    |> insertFolder f
+                            , items = items
                         }
                     )
                 |> Maybe.withDefault model
@@ -186,17 +238,16 @@ update msg model =
                             let
                                 newId =
                                     getNewId model.items
+
+                                folder =
+                                    Folder newId name []
                             in
-                            getFolder model.items model.path
-                                |> Maybe.map (\f -> { f | items = newId :: f.items })
+                            addItemToCurrentFolder (FolderItemFolder folder) model.path model.items
                                 |> Maybe.map
-                                    (\f ->
+                                    (\items ->
                                         { model
                                             | dialog = NoDialog
-                                            , items =
-                                                model.items
-                                                    |> insertFolder (Folder newId name [])
-                                                    |> insertFolder f
+                                            , items = items
                                         }
                                     )
                                 |> Maybe.withDefault model
@@ -207,37 +258,11 @@ update msg model =
         OpenCreateFolderDialog ->
             let
                 folderNames =
-                    getFolder model.items model.path
-                        |> Maybe.map (\f -> f.items |> List.filterMap (getFolderById model.items) |> List.map .title)
+                    getCurrentFolder model.items model.path
+                        |> Maybe.map (\f -> f.items |> List.filterMap (getFolder model.items) |> List.map .title)
                         |> Maybe.withDefault []
             in
             { model | dialog = DialogCreateFolderDialog (CreateFolderDialog.initModel folderNames) }
-
-
-genNoteTitle : String -> String
-genNoteTitle text =
-    text
-        |> String.lines
-        |> List.head
-        |> Maybe.map String.trim
-        |> Maybe.andThen
-            (\x ->
-                if String.length x == 0 then
-                    Nothing
-                else
-                    Just x
-            )
-        |> Maybe.withDefault "untitled"
-
-
-insertNote : String -> String -> Dict String FolderItem -> Dict String FolderItem
-insertNote id text items =
-    Dict.insert id (FolderItemNote (Note id (genNoteTitle text) text)) items
-
-
-insertFolder : Folder -> Dict String FolderItem -> Dict String FolderItem
-insertFolder folder items =
-    Dict.insert folder.id (FolderItemFolder folder) items
 
 
 getNewId : Dict String FolderItem -> String
@@ -263,7 +288,7 @@ view model =
 
 viewNotesList : Model -> Html Msg
 viewNotesList model =
-    case getFolder model.items model.path of
+    case getCurrentFolder model.items model.path of
         Just f ->
             viewFolder model.items f
 
