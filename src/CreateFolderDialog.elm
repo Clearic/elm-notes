@@ -1,8 +1,10 @@
 module CreateFolderDialog exposing (..)
 
+import Browser.Dom as Dom
 import Html exposing (Html, button, div, form, i, input, text)
-import Html.Attributes exposing (class, classList, disabled, hidden, placeholder, type_, value)
+import Html.Attributes exposing (class, classList, disabled, hidden, id, name, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
+import Task
 
 
 type alias Model =
@@ -12,18 +14,26 @@ type alias Model =
     }
 
 
-initModel : List String -> Model
+initModel : List String -> ( Model, Cmd Msg )
 initModel names =
-    { name = ""
-    , nameValMsg = Nothing
-    , namesAlreadyExist = List.map String.toLower names
-    }
+    ( { name = ""
+      , nameValMsg = Nothing
+      , namesAlreadyExist = List.map String.toLower names
+      }
+    , focusFolderName
+    )
+
+
+focusFolderName : Cmd Msg
+focusFolderName =
+    Task.attempt (\_ -> NoOp2) (Dom.focus "folder-name")
 
 
 type Msg
     = ChangeName String
     | Close
     | Submit
+    | NoOp2
 
 
 type ExternalMsg
@@ -32,25 +42,28 @@ type ExternalMsg
     | Cancel
 
 
-update : Msg -> Model -> ( Model, ExternalMsg )
+update : Msg -> Model -> ( Model, Cmd Msg, ExternalMsg )
 update msg model =
     case msg of
         ChangeName name ->
-            ( { model | name = name, nameValMsg = validateName model.namesAlreadyExist name }, NoOp )
+            ( { model | name = name, nameValMsg = validateName model.namesAlreadyExist name }, Cmd.none, NoOp )
 
         Close ->
-            ( model, Cancel )
+            ( model, Cmd.none, Cancel )
 
         Submit ->
             { model | nameValMsg = validateName model.namesAlreadyExist model.name }
                 |> (\x ->
                         case x.nameValMsg of
                             Nothing ->
-                                ( model, CreateFolder model.name )
+                                ( model, Cmd.none, CreateFolder model.name )
 
                             Just _ ->
-                                ( x, NoOp )
+                                ( x, Cmd.none, NoOp )
                    )
+
+        NoOp2 ->
+            ( model, Cmd.none, NoOp )
 
 
 validateName : List String -> String -> Maybe String
@@ -121,6 +134,8 @@ view model =
                                 [ ( "popup__input", True )
                                 , ( "popup__input--invalid", not <| isNothing model.nameValMsg )
                                 ]
+                            , id "folder-name"
+                            , name "folder-name"
                             , placeholder "Folder Name"
                             , value model.name
                             , onInput ChangeName
