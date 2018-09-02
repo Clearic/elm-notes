@@ -23,3 +23,18 @@ filter f m =
 
         _ ->
             Nothing
+
+
+isNothing : Maybe a -> Bool
+isNothing x =
+    case x of
+        Nothing ->
+            True
+
+        _ ->
+            False
+
+
+isJust : Maybe a -> Bool
+isJust =
+    not << isNothing

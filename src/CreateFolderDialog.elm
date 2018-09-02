@@ -5,6 +5,7 @@ import Html exposing (Html, button, div, form, i, input, text)
 import Html.Attributes exposing (class, classList, disabled, hidden, id, name, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Task
+import Utils exposing (isJust)
 
 
 type alias Model =
@@ -26,91 +27,66 @@ initModel names =
 
 focusFolderName : Cmd Msg
 focusFolderName =
-    Task.attempt (\_ -> NoOp2) (Dom.focus "folder-name")
+    Task.attempt (\_ -> NoOp) (Dom.focus "folder-name")
 
 
 type Msg
-    = ChangeName String
+    = NoOp
+    | ChangeName String
     | Close
     | Submit
-    | NoOp2
 
 
-type ExternalMsg
-    = NoOp
+type ReturnModel
+    = Update ( Model, Cmd Msg )
     | CreateFolder String
-    | Cancel
+    | CloseDialog
 
 
-update : Msg -> Model -> ( Model, Cmd Msg, ExternalMsg )
+update : Msg -> Model -> ReturnModel
 update msg model =
     case msg of
         ChangeName name ->
-            ( { model | name = name, nameValMsg = validateName model.namesAlreadyExist name }, Cmd.none, NoOp )
+            Update ( { model | name = name, nameValMsg = validateName model.namesAlreadyExist name }, Cmd.none )
 
         Close ->
-            ( model, Cmd.none, Cancel )
+            CloseDialog
 
         Submit ->
             { model | nameValMsg = validateName model.namesAlreadyExist model.name }
                 |> (\x ->
                         case x.nameValMsg of
                             Nothing ->
-                                ( model, Cmd.none, CreateFolder model.name )
+                                CreateFolder model.name
 
                             Just _ ->
-                                ( x, Cmd.none, NoOp )
+                                Update ( x, Cmd.none )
                    )
 
-        NoOp2 ->
-            ( model, Cmd.none, NoOp )
+        NoOp ->
+            Update ( model, Cmd.none )
 
 
 validateName : List String -> String -> Maybe String
 validateName namesAlreadyExist name =
-    name
-        |> String.trim
-        |> validateNameIsEmpty
-        |> Result.andThen (validateNameIsAlreadyExist namesAlreadyExist)
-        |> (\x ->
-                case x of
-                    Err e ->
-                        Just e
+    let
+        nameTrimmed =
+            String.trim name
 
-                    Ok _ ->
-                        Nothing
-           )
-
-
-validateNameIsEmpty : String -> Result String String
-validateNameIsEmpty name =
-    if String.length name == 0 then
-        Err "Folder name must not be empty"
+        nameAlreadyExists n =
+            List.member (String.toLower n) namesAlreadyExist
+    in
+    if String.isEmpty nameTrimmed then
+        Just "Folder name must not be empty"
+    else if nameAlreadyExists nameTrimmed then
+        Just "Folder with this name already exists"
     else
-        Ok name
-
-
-validateNameIsAlreadyExist : List String -> String -> Result String String
-validateNameIsAlreadyExist namesAlreadyExist name =
-    if List.member (String.toLower name) namesAlreadyExist then
-        Err "Folder with this name already exists"
-    else
-        Ok name
+        Nothing
 
 
 isModelValid : Model -> Bool
 isModelValid model =
     case model.nameValMsg of
-        Nothing ->
-            True
-
-        _ ->
-            False
-
-
-isNothing : Maybe a -> Bool
-isNothing x =
-    case x of
         Nothing ->
             True
 
@@ -132,7 +108,7 @@ view model =
                         [ input
                             [ classList
                                 [ ( "popup__input", True )
-                                , ( "popup__input--invalid", not <| isNothing model.nameValMsg )
+                                , ( "popup__input--invalid", isJust model.nameValMsg )
                                 ]
                             , id "folder-name"
                             , name "folder-name"

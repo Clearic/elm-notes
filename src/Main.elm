@@ -182,18 +182,14 @@ getNote items id =
 
 
 type Msg
-    = OpenFolder Folder
+    = NoOp
+    | OpenFolder Folder
     | OpenNote Note
     | GoBack
     | ChangeNote String String
     | NewNote
     | OpenCreateFolderDialog
-    | DialogMsg DialogMsg
-    | NoOp
-
-
-type DialogMsg
-    = DialogMsgCreateFolderDialog CreateFolderDialog.Msg
+    | CreateFolderDialogMsg CreateFolderDialog.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -239,17 +235,17 @@ update msg model =
                     )
                 |> Maybe.withDefault ( model, Cmd.none )
 
-        DialogMsg dialogMsg ->
-            case ( model.dialog, dialogMsg ) of
-                ( DialogCreateFolderDialog dialogModel, DialogMsgCreateFolderDialog createFolderDialogMsg ) ->
-                    case CreateFolderDialog.update createFolderDialogMsg dialogModel of
-                        ( m, cmd, CreateFolderDialog.NoOp ) ->
-                            ( { model | dialog = DialogCreateFolderDialog m }, mapDialogCmd cmd )
+        CreateFolderDialogMsg dialogMsg ->
+            case model.dialog of
+                DialogCreateFolderDialog dialogModel ->
+                    case CreateFolderDialog.update dialogMsg dialogModel of
+                        Update ( m, cmd ) ->
+                            ( { model | dialog = DialogCreateFolderDialog m }, Cmd.map CreateFolderDialogMsg cmd )
 
-                        ( _, cmd, CreateFolderDialog.Cancel ) ->
-                            ( { model | dialog = NoDialog }, mapDialogCmd cmd )
+                        CloseDialog ->
+                            ( { model | dialog = NoDialog }, Cmd.none )
 
-                        ( _, cmd, CreateFolderDialog.CreateFolder name ) ->
+                        CreateFolder name ->
                             let
                                 newId =
                                     getNewId model.items
@@ -267,9 +263,9 @@ update msg model =
                                         , Cmd.none
                                         )
                                     )
-                                |> Maybe.withDefault ( model, mapDialogCmd cmd )
+                                |> Maybe.withDefault ( model, Cmd.none )
 
-                ( _, _ ) ->
+                _ ->
                     ( model, Cmd.none )
 
         OpenCreateFolderDialog ->
@@ -282,7 +278,7 @@ update msg model =
                 ( dialogModel, cmd ) =
                     CreateFolderDialog.initModel folderNames
             in
-            ( { model | dialog = DialogCreateFolderDialog dialogModel }, mapDialogCmd cmd )
+            ( { model | dialog = DialogCreateFolderDialog dialogModel }, Cmd.map CreateFolderDialogMsg cmd )
 
         NoOp ->
             ( model, Cmd.none )
@@ -299,10 +295,6 @@ getNewId items =
 focusNoteEditor : Cmd Msg
 focusNoteEditor =
     Task.attempt (\_ -> NoOp) (Dom.focus "note-editor")
-
-
-mapDialogCmd =
-    Cmd.map (\x -> DialogMsg <| DialogMsgCreateFolderDialog x)
 
 
 
@@ -351,7 +343,7 @@ viewDialog model =
             text ""
 
         DialogCreateFolderDialog dialogModel ->
-            Html.map (\x -> DialogMsg <| DialogMsgCreateFolderDialog x) (CreateFolderDialog.view dialogModel)
+            Html.map CreateFolderDialogMsg (CreateFolderDialog.view dialogModel)
 
 
 viewFolder : Dict String FolderItem -> Folder -> Html Msg
