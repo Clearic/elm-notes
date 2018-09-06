@@ -39,6 +39,7 @@ type alias Model =
 
 type alias Note =
     { id : String
+    , parentId : String
     , title : String
     , text : String
     }
@@ -46,6 +47,7 @@ type alias Note =
 
 type alias Folder =
     { id : String
+    , parentId : Maybe String
     , title : String
     , items : List String
     }
@@ -89,14 +91,14 @@ init _ =
     in
     ( { items =
             Dict.fromList
-                [ ( "0", FolderItemFolder (Folder "0" "Root" [ "1", "2", "3", "4" ]) )
-                , ( "1", FolderItemNote (Note "1" "Note 1" "Note 1\n\nThis is a first note") )
-                , ( "2", FolderItemNote (Note "2" "Note 2" "Note 2\n\nThis is a second note") )
-                , ( "3", FolderItemNote (Note "3" "Note 3" "Note 3\n\nThis is a third note") )
-                , ( "4", FolderItemFolder (Folder "4" "Folder 1" [ "5", "6", "7" ]) )
-                , ( "5", FolderItemNote (Note "5" "Note A" "Note A\n\nThis is a note A") )
-                , ( "6", FolderItemNote (Note "6" "Note B" "Note B\n\nThis is a note B") )
-                , ( "7", FolderItemNote (Note "7" "Note C" "Note C\n\nThis is a note C") )
+                [ ( "0", FolderItemFolder (Folder "0" Nothing "Root" [ "1", "2", "3", "4" ]) )
+                , ( "1", FolderItemNote (Note "1" "0" "Note 1" "Note 1\n\nThis is a first note") )
+                , ( "2", FolderItemNote (Note "2" "0" "Note 2" "Note 2\n\nThis is a second note") )
+                , ( "3", FolderItemNote (Note "3" "0" "Note 3" "Note 3\n\nThis is a third note") )
+                , ( "4", FolderItemFolder (Folder "4" (Just "0") "Folder 1" [ "5", "6", "7" ]) )
+                , ( "5", FolderItemNote (Note "5" "4" "Note A" "Note A\n\nThis is a note A") )
+                , ( "6", FolderItemNote (Note "6" "4" "Note B" "Note B\n\nThis is a note B") )
+                , ( "7", FolderItemNote (Note "7" "4" "Note C" "Note C\n\nThis is a note C") )
                 ]
       , path = [ "0" ]
       , openedNote = Nothing
@@ -107,8 +109,9 @@ init _ =
     )
 
 
-newNote id text =
-    Note id (genNoteTitle text) text
+newNote : String -> String -> String -> Note
+newNote id parentId text =
+    Note id parentId (genNoteTitle text) text
 
 
 genNoteTitle : String -> String
@@ -133,7 +136,10 @@ insertFolder folder items =
 
 updateNote : String -> String -> Dict String FolderItem -> Dict String FolderItem
 updateNote id text items =
-    Dict.insert id (FolderItemNote (newNote id text)) items
+    getNote items id
+        |> Maybe.map (\n -> { n | text = text, title = genNoteTitle text })
+        |> Maybe.map (\n -> Dict.insert id (FolderItemNote n) items)
+        |> Maybe.withDefault items
 
 
 addItemToCurrentFolder : FolderItem -> List String -> Dict String FolderItem -> Maybe (Dict String FolderItem)
@@ -247,11 +253,10 @@ update msg model =
             let
                 newId =
                     getNewId model.items
-
-                note =
-                    newNote newId "New Note"
             in
-            addItemToCurrentFolder (FolderItemNote note) model.path model.items
+            getCurrentFolder model.items model.path
+                |> Maybe.map (\f -> newNote newId f.id "NewNote")
+                |> Maybe.andThen (\note -> addItemToCurrentFolder (FolderItemNote note) model.path model.items)
                 |> Maybe.map
                     (\items ->
                         ( { model
@@ -277,11 +282,10 @@ update msg model =
                             let
                                 newId =
                                     getNewId model.items
-
-                                folder =
-                                    Folder newId name []
                             in
-                            addItemToCurrentFolder (FolderItemFolder folder) model.path model.items
+                            getCurrentFolder model.items model.path
+                                |> Maybe.map (\f -> Folder newId (Just f.id) name [])
+                                |> Maybe.andThen (\folder -> addItemToCurrentFolder (FolderItemFolder folder) model.path model.items)
                                 |> Maybe.map
                                     (\items ->
                                         ( { model
