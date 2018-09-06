@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Browser.Dom as Dom
+import ContextMenu exposing (ContextMenu)
 import CreateFolderDialog as CreateFolderDialog exposing (..)
 import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
@@ -32,6 +33,7 @@ type alias Model =
     , path : List String
     , openedNote : Maybe String
     , dialog : Dialog
+    , contextMenu : ContextMenu ContextMenuContext
     }
 
 
@@ -59,8 +61,32 @@ type Dialog
     | DialogCreateFolderDialog CreateFolderDialog.Model
 
 
+type ContextMenuContext
+    = NoteContextMenu Note
+    | FolderContextMenu Folder
+
+
+contextMenuConfig : ContextMenu.Config
+contextMenuConfig =
+    { width = 300
+    , direction = ContextMenu.RightBottom
+    , overflowX = ContextMenu.Mirror
+    , overflowY = ContextMenu.Mirror
+    , containerColor = "white"
+    , hoverColor = "rgb(240 240 240)"
+    , invertText = False
+    , cursor = ContextMenu.Pointer
+    , rounded = False
+    , fontFamily = "inherit"
+    }
+
+
 init : () -> ( Model, Cmd Msg )
 init _ =
+    let
+        ( contextMenu, msg ) =
+            ContextMenu.init
+    in
     ( { items =
             Dict.fromList
                 [ ( "0", FolderItemFolder (Folder "0" "Root" [ "1", "2", "3", "4" ]) )
@@ -75,8 +101,9 @@ init _ =
       , path = [ "0" ]
       , openedNote = Nothing
       , dialog = NoDialog
+      , contextMenu = contextMenu
       }
-    , Cmd.none
+    , Cmd.map ContextMenuMsg msg
     )
 
 
@@ -190,6 +217,7 @@ type Msg
     | NewNote
     | OpenCreateFolderDialog
     | CreateFolderDialogMsg CreateFolderDialog.Msg
+    | ContextMenuMsg (ContextMenu.Msg ContextMenuContext)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -283,6 +311,15 @@ update msg model =
         NoOp ->
             ( model, Cmd.none )
 
+        ContextMenuMsg msg_ ->
+            let
+                ( contextMenu, cmd ) =
+                    ContextMenu.update msg_ model.contextMenu
+            in
+            ( { model | contextMenu = contextMenu }
+            , Cmd.map ContextMenuMsg cmd
+            )
+
 
 getNewId : Dict String FolderItem -> String
 getNewId items =
@@ -303,7 +340,7 @@ focusNoteEditor =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.none
+    Sub.map ContextMenuMsg (ContextMenu.subscriptions model.contextMenu)
 
 
 
@@ -316,6 +353,7 @@ view model =
         [ viewNotesList model
         , viewNoteEdit model
         , viewDialog model
+        , viewContextMenu model
         ]
 
 
@@ -368,13 +406,13 @@ viewFolderItem folderItem =
     case folderItem of
         FolderItemNote note ->
             li [ class "notes-list__item" ]
-                [ a [ class "notes-list__link", href "#", onClickPreventDefault (OpenNote note) ]
+                [ a [ class "notes-list__link", href "#", onClickPreventDefault (OpenNote note), ContextMenu.open ContextMenuMsg (NoteContextMenu note) ]
                     [ text note.title ]
                 ]
 
         FolderItemFolder folder ->
             li [ class "notes-list__item notes-list__item--folder" ]
-                [ a [ class "notes-list__link", href "#", onClickPreventDefault (OpenFolder folder) ]
+                [ a [ class "notes-list__link", href "#", onClickPreventDefault (OpenFolder folder), ContextMenu.open ContextMenuMsg (FolderContextMenu folder) ]
                     [ text folder.title ]
                 ]
 
@@ -390,3 +428,28 @@ viewNote maybeNote =
 
         Nothing ->
             text ""
+
+
+viewContextMenu : Model -> Html Msg
+viewContextMenu model =
+    ContextMenu.view
+        contextMenuConfig
+        ContextMenuMsg
+        toItemGroups
+        model.contextMenu
+
+
+toItemGroups : ContextMenuContext -> List (List ( ContextMenu.Item, Msg ))
+toItemGroups context =
+    case context of
+        NoteContextMenu note ->
+            [ [ ( ContextMenu.item "Open", OpenNote note )
+              , ( ContextMenu.item "Delete", NoOp )
+              ]
+            ]
+
+        FolderContextMenu folder ->
+            [ [ ( ContextMenu.item "Rename", NoOp )
+              , ( ContextMenu.item "Delete", NoOp )
+              ]
+            ]
