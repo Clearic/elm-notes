@@ -210,6 +210,24 @@ getNote items id =
             )
 
 
+removeItem : String -> Dict String FolderItem -> Dict String FolderItem
+removeItem id items =
+    case Dict.get id items of
+        Just (FolderItemNote note) ->
+            Dict.remove note.id items
+
+        Just (FolderItemFolder folder) ->
+            removeFolder folder items
+
+        Nothing ->
+            items
+
+
+removeFolder : Folder -> Dict String FolderItem -> Dict String FolderItem
+removeFolder folder items =
+    List.foldl removeItem items folder.items
+
+
 
 -- UPDATE
 
@@ -224,6 +242,7 @@ type Msg
     | GoBack
     | OpenCreateFolderDialog
     | CreateFolderDialogMsg CreateFolderDialog.Msg
+    | DeleteFolder Folder
     | ContextMenuMsg (ContextMenu.Msg ContextMenuContext)
 
 
@@ -282,6 +301,14 @@ update msg model =
                         , Cmd.none
                         )
                     )
+                |> Maybe.withDefault ( model, Cmd.none )
+
+        DeleteFolder folder ->
+            folder.parentId
+                |> Maybe.andThen (\id -> getFolder model.items id)
+                |> Maybe.map (\f -> { f | items = List.filter (\x -> x /= folder.id) f.items })
+                |> Maybe.map (\f -> Dict.insert f.id (FolderItemFolder f) model.items)
+                |> Maybe.map (\items -> ( { model | items = removeFolder folder items }, Cmd.none ))
                 |> Maybe.withDefault ( model, Cmd.none )
 
         CreateFolderDialogMsg dialogMsg ->
@@ -345,7 +372,9 @@ getNewId : Dict String FolderItem -> String
 getNewId items =
     items
         |> Dict.keys
+        |> List.filterMap String.toInt
         |> List.maximum
+        |> Maybe.map (\n -> String.fromInt (n + 1))
         |> Maybe.withDefault "0"
 
 
@@ -470,6 +499,6 @@ toItemGroups context =
 
         FolderContextMenu folder ->
             [ [ ( ContextMenu.item "Rename", NoOp )
-              , ( ContextMenu.item "Delete", NoOp )
+              , ( ContextMenu.item "Delete", DeleteFolder folder )
               ]
             ]
