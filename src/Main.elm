@@ -217,10 +217,11 @@ getNote items id =
 type Msg
     = NoOp
     | OpenFolder Folder
-    | OpenNote Note
-    | GoBack
-    | ChangeNote String String
     | NewNote
+    | OpenNote Note
+    | DeleteNote Note
+    | ChangeNote String String
+    | GoBack
     | OpenCreateFolderDialog
     | CreateFolderDialogMsg CreateFolderDialog.Msg
     | ContextMenuMsg (ContextMenu.Msg ContextMenuContext)
@@ -264,6 +265,21 @@ update msg model =
                             , items = items
                           }
                         , focusNoteEditor
+                        )
+                    )
+                |> Maybe.withDefault ( model, Cmd.none )
+
+        DeleteNote note ->
+            getFolder model.items note.parentId
+                |> Maybe.map (\f -> { f | items = List.filter (\x -> x /= note.id) f.items })
+                |> Maybe.map (\f -> Dict.insert f.id (FolderItemFolder f) model.items)
+                |> Maybe.map
+                    (\items ->
+                        ( { model
+                            | items = Dict.remove note.id items
+                            , openedNote = filter (\x -> x /= note.id) model.openedNote
+                          }
+                        , Cmd.none
                         )
                     )
                 |> Maybe.withDefault ( model, Cmd.none )
@@ -328,9 +344,9 @@ update msg model =
 getNewId : Dict String FolderItem -> String
 getNewId items =
     items
-        |> Dict.size
-        |> (\x -> x + 1)
-        |> String.fromInt
+        |> Dict.keys
+        |> List.maximum
+        |> Maybe.withDefault "0"
 
 
 focusNoteEditor : Cmd Msg
@@ -448,7 +464,7 @@ toItemGroups context =
     case context of
         NoteContextMenu note ->
             [ [ ( ContextMenu.item "Open", OpenNote note )
-              , ( ContextMenu.item "Delete", NoOp )
+              , ( ContextMenu.item "Delete", DeleteNote note )
               ]
             ]
 
