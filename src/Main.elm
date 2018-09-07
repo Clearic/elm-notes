@@ -10,6 +10,7 @@ import Html.Attributes exposing (class, disabled, hidden, href, id, name, placeh
 import Html.Events exposing (onClick, onInput, onSubmit)
 import RenameFolderDialog as RenameFolderDialog exposing (..)
 import Task
+import Types exposing (..)
 import Utils exposing (filter, onClickPreventDefault)
 
 
@@ -36,26 +37,6 @@ type alias Model =
     , dialog : Dialog
     , contextMenu : ContextMenu ContextMenuContext
     }
-
-
-type alias Note =
-    { id : ID
-    , parentId : ID
-    , title : String
-    , text : String
-    }
-
-
-type alias Folder =
-    { id : ID
-    , parentId : Maybe ID
-    , title : String
-    , items : List String
-    }
-
-
-type alias ID =
-    String
 
 
 type FolderItem

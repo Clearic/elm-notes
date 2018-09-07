@@ -5,18 +5,19 @@ import Html exposing (Html, button, div, form, i, input, text)
 import Html.Attributes exposing (class, classList, disabled, hidden, id, name, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import Task
+import Types exposing (ID)
 import Utils exposing (isJust)
 
 
 type alias Model =
-    { id : String
+    { id : ID
     , name : String
     , nameValMsg : Maybe String
     , namesAlreadyExist : List String
     }
 
 
-initModel : String -> String -> List String -> ( Model, Cmd Msg )
+initModel : ID -> String -> List String -> ( Model, Cmd Msg )
 initModel id name names =
     ( { id = id
       , name = name
@@ -41,7 +42,7 @@ type Msg
 
 type ReturnModel
     = Update ( Model, Cmd Msg )
-    | RenameFolder String String
+    | RenameFolder ID String
     | CloseDialog
 
 
