@@ -30,28 +30,32 @@ main =
 
 
 type alias Model =
-    { items : Dict String FolderItem
-    , path : List String
-    , openedNote : Maybe String
+    { items : Dict ID FolderItem
+    , path : List ID
+    , openedNote : Maybe ID
     , dialog : Dialog
     , contextMenu : ContextMenu ContextMenuContext
     }
 
 
 type alias Note =
-    { id : String
-    , parentId : String
+    { id : ID
+    , parentId : ID
     , title : String
     , text : String
     }
 
 
 type alias Folder =
-    { id : String
-    , parentId : Maybe String
+    { id : ID
+    , parentId : Maybe ID
     , title : String
     , items : List String
     }
+
+
+type alias ID =
+    String
 
 
 type FolderItem
@@ -111,7 +115,7 @@ init _ =
     )
 
 
-newNote : String -> String -> String -> Note
+newNote : ID -> ID -> String -> Note
 newNote id parentId text =
     Note id parentId (genNoteTitle text) text
 
@@ -126,17 +130,17 @@ genNoteTitle text =
         |> Maybe.withDefault "untitled"
 
 
-insertNote : Note -> Dict String FolderItem -> Dict String FolderItem
+insertNote : Note -> Dict ID FolderItem -> Dict ID FolderItem
 insertNote note items =
     Dict.insert note.id (FolderItemNote note) items
 
 
-insertFolder : Folder -> Dict String FolderItem -> Dict String FolderItem
+insertFolder : Folder -> Dict ID FolderItem -> Dict ID FolderItem
 insertFolder folder items =
     Dict.insert folder.id (FolderItemFolder folder) items
 
 
-updateNote : String -> String -> Dict String FolderItem -> Dict String FolderItem
+updateNote : ID -> String -> Dict ID FolderItem -> Dict ID FolderItem
 updateNote id text items =
     getNote items id
         |> Maybe.map (\n -> { n | text = text, title = genNoteTitle text })
@@ -144,7 +148,7 @@ updateNote id text items =
         |> Maybe.withDefault items
 
 
-addItemToCurrentFolder : FolderItem -> List String -> Dict String FolderItem -> Maybe (Dict String FolderItem)
+addItemToCurrentFolder : FolderItem -> List ID -> Dict ID FolderItem -> Maybe (Dict ID FolderItem)
 addItemToCurrentFolder item path items =
     let
         id =
@@ -159,7 +163,7 @@ addItemToCurrentFolder item path items =
             )
 
 
-getItemId : FolderItem -> String
+getItemId : FolderItem -> ID
 getItemId item =
     case item of
         FolderItemNote note ->
@@ -169,7 +173,7 @@ getItemId item =
             folder.id
 
 
-getCurrentFolder : Dict String FolderItem -> List String -> Maybe Folder
+getCurrentFolder : Dict ID FolderItem -> List ID -> Maybe Folder
 getCurrentFolder items path =
     List.head path
         |> Maybe.andThen (\id -> Dict.get id items)
@@ -184,7 +188,7 @@ getCurrentFolder items path =
             )
 
 
-getFolder : Dict String FolderItem -> String -> Maybe Folder
+getFolder : Dict ID FolderItem -> ID -> Maybe Folder
 getFolder items id =
     Dict.get id items
         |> Maybe.andThen
@@ -198,7 +202,7 @@ getFolder items id =
             )
 
 
-getNote : Dict String FolderItem -> String -> Maybe Note
+getNote : Dict ID FolderItem -> ID -> Maybe Note
 getNote items id =
     Dict.get id items
         |> Maybe.andThen
@@ -212,7 +216,7 @@ getNote items id =
             )
 
 
-removeItem : String -> Dict String FolderItem -> Dict String FolderItem
+removeItem : ID -> Dict ID FolderItem -> Dict ID FolderItem
 removeItem id items =
     case Dict.get id items of
         Just (FolderItemNote note) ->
@@ -225,7 +229,7 @@ removeItem id items =
             items
 
 
-removeFolder : Folder -> Dict String FolderItem -> Dict String FolderItem
+removeFolder : Folder -> Dict ID FolderItem -> Dict ID FolderItem
 removeFolder folder items =
     List.foldl removeItem items folder.items
 
@@ -240,7 +244,7 @@ type Msg
     | NewNote
     | OpenNote Note
     | DeleteNote Note
-    | ChangeNote String String
+    | ChangeNote ID String
     | GoBack
     | OpenCreateFolderDialog
     | CreateFolderDialogMsg CreateFolderDialog.Msg
@@ -412,7 +416,7 @@ update msg model =
             )
 
 
-getNewId : Dict String FolderItem -> String
+getNewId : Dict ID FolderItem -> ID
 getNewId items =
     items
         |> Dict.keys
@@ -480,7 +484,7 @@ viewDialog model =
             Html.map RenameFolderDialogMsg (RenameFolderDialog.view dialogModel)
 
 
-viewFolder : Dict String FolderItem -> Folder -> Html Msg
+viewFolder : Dict ID FolderItem -> Folder -> Html Msg
 viewFolder items folder =
     div [ class "app__left-sidebar" ]
         [ div [ class "bar" ]
