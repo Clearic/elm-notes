@@ -21,4 +21,4 @@ type alias Folder =
 
 
 type alias ID =
-    String
+    Int

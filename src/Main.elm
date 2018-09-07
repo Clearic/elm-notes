@@ -11,7 +11,7 @@ import Html.Events exposing (onClick, onInput, onSubmit)
 import RenameFolderDialog as RenameFolderDialog exposing (..)
 import Task
 import Types exposing (..)
-import Utils exposing (filter, onClickPreventDefault)
+import Utils exposing (filter, isNothing, onClickPreventDefault)
 
 
 -- MAIN
@@ -78,16 +78,16 @@ init _ =
     in
     ( { items =
             Dict.fromList
-                [ ( "0", FolderItemFolder (Folder "0" Nothing "Root" [ "1", "2", "3", "4" ]) )
-                , ( "1", FolderItemNote (Note "1" "0" "Note 1" "Note 1\n\nThis is a first note") )
-                , ( "2", FolderItemNote (Note "2" "0" "Note 2" "Note 2\n\nThis is a second note") )
-                , ( "3", FolderItemNote (Note "3" "0" "Note 3" "Note 3\n\nThis is a third note") )
-                , ( "4", FolderItemFolder (Folder "4" (Just "0") "Folder 1" [ "5", "6", "7" ]) )
-                , ( "5", FolderItemNote (Note "5" "4" "Note A" "Note A\n\nThis is a note A") )
-                , ( "6", FolderItemNote (Note "6" "4" "Note B" "Note B\n\nThis is a note B") )
-                , ( "7", FolderItemNote (Note "7" "4" "Note C" "Note C\n\nThis is a note C") )
+                [ ( 0, FolderItemFolder (Folder 0 Nothing "Root" [ 1, 2, 3, 4 ]) )
+                , ( 1, FolderItemNote (Note 1 0 "Note 1" "Note 1\n\nThis is a first note") )
+                , ( 2, FolderItemNote (Note 2 0 "Note 2" "Note 2\n\nThis is a second note") )
+                , ( 3, FolderItemNote (Note 3 0 "Note 3" "Note 3\n\nThis is a third note") )
+                , ( 4, FolderItemFolder (Folder 4 (Just 0) "Folder 1" [ 5, 6, 7 ]) )
+                , ( 5, FolderItemNote (Note 5 4 "Note A" "Note A\n\nThis is a note A") )
+                , ( 6, FolderItemNote (Note 6 4 "Note B" "Note B\n\nThis is a note B") )
+                , ( 7, FolderItemNote (Note 7 4 "Note C" "Note C\n\nThis is a note C") )
                 ]
-      , path = [ "0" ]
+      , path = [ 0 ]
       , openedNote = Nothing
       , dialog = NoDialog
       , contextMenu = contextMenu
@@ -401,10 +401,8 @@ getNewId : Dict ID FolderItem -> ID
 getNewId items =
     items
         |> Dict.keys
-        |> List.filterMap String.toInt
         |> List.maximum
-        |> Maybe.map (\n -> String.fromInt (n + 1))
-        |> Maybe.withDefault "0"
+        |> Maybe.withDefault 0
 
 
 focusNoteEditor : Cmd Msg
@@ -469,7 +467,7 @@ viewFolder : Dict ID FolderItem -> Folder -> Html Msg
 viewFolder items folder =
     div [ class "app__left-sidebar" ]
         [ div [ class "bar" ]
-            [ button [ class "bar__button margin-right", onClick GoBack, hidden (folder.id == "0") ] [ i [ class "icon-angle-left" ] [] ]
+            [ button [ class "bar__button margin-right", onClick GoBack, hidden (isNothing folder.parentId) ] [ i [ class "icon-angle-left" ] [] ]
             , div [ class "bar__title" ] [ text folder.title ]
             , button [ class "bar__button", onClick NewNote ] [ i [ class "icon-file" ] [] ]
             , button [ class "bar__button", onClick OpenCreateFolderDialog ] [ i [ class "icon-folder" ] [] ]
