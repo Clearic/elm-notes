@@ -8,6 +8,7 @@ import Dict exposing (Dict)
 import Html exposing (Html, a, button, div, form, h1, i, input, li, text, textarea, ul)
 import Html.Attributes exposing (class, disabled, hidden, href, id, name, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
+import RenameFolderDialog as RenameFolderDialog exposing (..)
 import Task
 import Utils exposing (filter, onClickPreventDefault)
 
@@ -61,6 +62,7 @@ type FolderItem
 type Dialog
     = NoDialog
     | DialogCreateFolderDialog CreateFolderDialog.Model
+    | DialogRenameFolderDialog RenameFolderDialog.Model
 
 
 type ContextMenuContext
@@ -242,6 +244,8 @@ type Msg
     | GoBack
     | OpenCreateFolderDialog
     | CreateFolderDialogMsg CreateFolderDialog.Msg
+    | OpenRenameFolderDialog Folder
+    | RenameFolderDialogMsg RenameFolderDialog.Msg
     | DeleteFolder Folder
     | ContextMenuMsg (ContextMenu.Msg ContextMenuContext)
 
@@ -311,17 +315,29 @@ update msg model =
                 |> Maybe.map (\items -> ( { model | items = removeFolder folder items }, Cmd.none ))
                 |> Maybe.withDefault ( model, Cmd.none )
 
+        OpenCreateFolderDialog ->
+            let
+                folderNames =
+                    getCurrentFolder model.items model.path
+                        |> Maybe.map (\f -> f.items |> List.filterMap (getFolder model.items) |> List.map .title)
+                        |> Maybe.withDefault []
+
+                ( dialogModel, cmd ) =
+                    CreateFolderDialog.initModel folderNames
+            in
+            ( { model | dialog = DialogCreateFolderDialog dialogModel }, Cmd.map CreateFolderDialogMsg cmd )
+
         CreateFolderDialogMsg dialogMsg ->
             case model.dialog of
                 DialogCreateFolderDialog dialogModel ->
                     case CreateFolderDialog.update dialogMsg dialogModel of
-                        Update ( m, cmd ) ->
+                        CreateFolderDialog.Update ( m, cmd ) ->
                             ( { model | dialog = DialogCreateFolderDialog m }, Cmd.map CreateFolderDialogMsg cmd )
 
-                        CloseDialog ->
+                        CreateFolderDialog.CloseDialog ->
                             ( { model | dialog = NoDialog }, Cmd.none )
 
-                        CreateFolder name ->
+                        CreateFolderDialog.CreateFolder name ->
                             let
                                 newId =
                                     getNewId model.items
@@ -343,20 +359,48 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        OpenCreateFolderDialog ->
+        OpenRenameFolderDialog folder ->
             let
                 folderNames =
-                    getCurrentFolder model.items model.path
+                    folder.parentId
+                        |> Maybe.andThen (\id -> getFolder model.items id)
                         |> Maybe.map (\f -> f.items |> List.filterMap (getFolder model.items) |> List.map .title)
                         |> Maybe.withDefault []
 
                 ( dialogModel, cmd ) =
-                    CreateFolderDialog.initModel folderNames
+                    RenameFolderDialog.initModel folder.id folder.title folderNames
             in
-            ( { model | dialog = DialogCreateFolderDialog dialogModel }, Cmd.map CreateFolderDialogMsg cmd )
+            ( { model | dialog = DialogRenameFolderDialog dialogModel }, Cmd.map RenameFolderDialogMsg cmd )
 
         NoOp ->
             ( model, Cmd.none )
+
+        RenameFolderDialogMsg dialogMsg ->
+            case model.dialog of
+                DialogRenameFolderDialog dialogModel ->
+                    case RenameFolderDialog.update dialogMsg dialogModel of
+                        RenameFolderDialog.Update ( m, cmd ) ->
+                            ( { model | dialog = DialogRenameFolderDialog m }, Cmd.map RenameFolderDialogMsg cmd )
+
+                        RenameFolderDialog.CloseDialog ->
+                            ( { model | dialog = NoDialog }, Cmd.none )
+
+                        RenameFolderDialog.RenameFolder id name ->
+                            getFolder model.items id
+                                |> Maybe.map (\f -> { f | title = name })
+                                |> Maybe.map
+                                    (\f ->
+                                        ( { model
+                                            | dialog = NoDialog
+                                            , items = insertFolder f model.items
+                                          }
+                                        , Cmd.none
+                                        )
+                                    )
+                                |> Maybe.withDefault ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         ContextMenuMsg msg_ ->
             let
@@ -432,6 +476,9 @@ viewDialog model =
         DialogCreateFolderDialog dialogModel ->
             Html.map CreateFolderDialogMsg (CreateFolderDialog.view dialogModel)
 
+        DialogRenameFolderDialog dialogModel ->
+            Html.map RenameFolderDialogMsg (RenameFolderDialog.view dialogModel)
+
 
 viewFolder : Dict String FolderItem -> Folder -> Html Msg
 viewFolder items folder =
@@ -498,7 +545,7 @@ toItemGroups context =
             ]
 
         FolderContextMenu folder ->
-            [ [ ( ContextMenu.item "Rename", NoOp )
+            [ [ ( ContextMenu.item "Rename", OpenRenameFolderDialog folder )
               , ( ContextMenu.item "Delete", DeleteFolder folder )
               ]
             ]
